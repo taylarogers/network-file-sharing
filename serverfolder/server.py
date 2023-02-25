@@ -34,10 +34,12 @@ def doThings(sock,addr):
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize, filestate,password = header.split("#")
             if(command == '<READ>'):
-                receiveMode(sock,filename,filesize,filestate,password)
+
+                uploadMode(sock,filename,filesize,filestate,password)
                 break
             elif(command == '<WRITE>'):
-                sendMode(sock,filename,password)
+                downloadMode(sock,filename,password)
+
                 break
             elif(command == '<LIST>'):
                 listMode(sock)
@@ -62,31 +64,25 @@ def decodeHeader(header):
     return header.split("#")
 
 #function for receiving a file to be stored
-def receiveMode(sock,filename,filesize, filestate,password):
+
+def uploadMode(sock,filename,filesize, filestate,password):
+
     file_keys[filename] = (filestate,password)
     
-    #data to write to file
-    file_bytes = b""
+    with open(filename,"wb") as f: 
+        while True:
+            # read 1024 bytes from the socket (receive)
+            bytes_read = sock.recv(4096)
+            if not bytes_read:    
+                # if nothing is coming through then we are done
+                break
+            # write to the file the bytes we just received
+            f.write(bytes_read)
+    
 
-    #recieve the file in packets
-    while True:
-        packet = sock.recv(1024)
-        if not packet:
-            break
-        file_bytes += packet
-    
-    #open the file to write to and write to the file
-    if(len(file_bytes) == filesize):
-        file = open(filename, "wb")
-        file.write(file_bytes)
-        file.close()
-        return
-    else:
-        print("Transfer failed")
-        return
-    
 #function to send a file from the server to a client
-def sendMode(sock,filename,password):
+def downloadMode(sock,filename,password):
+
     file = open(filename, "rb")
     filesize = os.path.getsize(filename)
     filestate,pwd = file_keys[filename]

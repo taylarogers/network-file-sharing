@@ -9,19 +9,23 @@ def main():
         # accept console input for instructions
         while (True):
             # type the message to be sent
-            message = input("What would you like to do? \n (s)end file, (r)etrieve file, (l)ist files, (q)uit \n")
+            message = input("What would you like to do? Choose one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Quit \n")
             
-            
-            if (message == 's'):
-                sendMode(sock)
+
+            if (message == 'Upload'):
+                uploadMode(sock)
                 break
-            elif (message == 'r'):
-                recMode(sock)
+            elif (message == 'MultiUpload'):
+                multiUploadMode(sock)
                 break
-            elif (message == 'l'):
-                listmode(sock)
+            elif (message == 'Download'):
+                downloadMode(sock)
+
                 break
-            elif (message == 'q'):
+            elif (message == 'List'):
+                listMode(sock)
+                break
+            elif (message == 'Quit'):
                 print("Closing server link...")
                 sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
                 break
@@ -33,15 +37,47 @@ def main():
 
 #building the header that needs to be sent to the server
 def buildHeader(command, filename='', filesize='', filestate='', password=''):
-    return f"{command}#{filename}#{filesize}#{filestate}#{password}"
+
+    return f'{command}#{filename}#{filesize}#{filestate}#{password}'
+
 
 #decoding headers that come from the server
 def decodeHeader(header,pos):
     return header.split("#")[pos]
 
+
+#function to send multiple files at once
+def multiUploadMode(sock):
+    #enter the amount of files to send:
+    numFiles=input("Please enter the number of files you wish to upload (1-100):\n")
+
+    #check if a number is valid
+    if numFiles.isdigit() and int(numFiles)>0:
+        numFiles=int(numFiles)
+        #for loop to go through all files
+        for x in range(numFiles):
+            #enter the name of the file you wish to send
+            filename, password = input("Please enter the filename of the file you wish to send and the associated password (filename password): \n").split(" ")
+            filesize = os.path.getsize(filename)
+            #send the header
+            sock.send(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
+            #open the file to send
+            file = open(filename, "rb")
+            
+            #read packets to send over
+            while True:
+                packet = file.read(1024)
+                if not packet:
+                    break
+                sock.send(packet)
+            file.close()
+    else:
+        print("This is not a valid number")
+
+    
 #function to send a file to the server
-def sendMode(sock):
-    #enter the name of the file you wish to send
+def uploadMode(sock):
+
     filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
     filesize = os.path.getsize(filename)
     #send the header
@@ -56,9 +92,10 @@ def sendMode(sock):
             break
         sock.send(packet)
     file.close()
-    
+
 #function to receive a file from the server
-def recMode(sock):
+def downloadMode(sock):
+
     filename, password = input("Please enter the filename of the file you wish to send followed by the file password: \n").split(" ")
     sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
@@ -85,7 +122,9 @@ def recMode(sock):
         return
 
 #function to request a list of files currently on the server
-def listmode(sock):
+
+def listMode(sock):
+
     sock.send(bytes(buildHeader("<LIST>"),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")
