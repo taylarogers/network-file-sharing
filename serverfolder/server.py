@@ -24,23 +24,23 @@ def main():
     while True:
         clientsocket, address = s.accept()
         print(f"connection from {address} has been established!")
-        start_new_thread(dothings,(clientsocket,address))
+        start_new_thread(doThings,(clientsocket,address))
     
 
-def dothings(sock,addr):
+def doThings(sock,addr):
     try:
         counter = 0
         while True:
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize, filestate,password = header.split("#")
             if(command == '<READ>'):
-                receivemode(sock,filename,filesize,filestate,password)
+                uploadMode(sock,filename,filesize,filestate,password)
                 break
             elif(command == '<WRITE>'):
-                sendmode(sock,filename,password)
+                downloadMode(sock,filename,password)
                 break
             elif(command == '<LIST>'):
-                listmode(sock)
+                listMode(sock)
                 break
             elif(command == '<QUIT>'):
                 print("Closing server link...")
@@ -55,41 +55,33 @@ def dothings(sock,addr):
             json.dump(file_keys, outfile)
         sock.close()
 
-def buildheader(command, filename='', filesize='', filestate='', password=''):
+def buildHeader(command, filename='', filesize='', filestate='', password=''):
     return f"{command}#{filename}#{filesize}#{filestate}#{password}"
 
-def decodeheader(header):
+def decodeHeader(header):
     return header.split("#")
 
-def receivemode(sock,filename,filesize, filestate,password):
+#function for receiving a file to be stored
+def uploadMode(sock,filename,filesize, filestate,password):
     file_keys[filename] = (filestate,password)
     
-    #data to write to file
-    file_bytes = b""
-
-    #recieve the file in packets
-    while True:
-        packet = sock.recv(1024)
-        if not packet:
-            break
-        file_bytes += packet
+    with open(filename,"wb") as f: 
+        while True:
+            # read 1024 bytes from the socket (receive)
+            bytes_read = sock.recv(4096)
+            if not bytes_read:    
+                # if nothing is coming through then we are done
+                break
+            # write to the file the bytes we just received
+            f.write(bytes_read)
     
-    #open the file to write to and write to the file
-    if(len(file_bytes) == filesize):
-        file = open(filename, "wb")
-        file.write(file_bytes)
-        file.close()
-        return
-    else:
-        print("Transfer failed")
-        return
-
-def sendmode(sock,filename,password):
+#function to send a file from the server to a client
+def downloadMode(sock,filename,password):
     file = open(filename, "rb")
     filesize = os.path.getsize(filename)
     filestate,pwd = file_keys[filename]
     if filestate == 'protected' and password == pwd:
-        sock.send(bytes(buildheader("<WRITE>",filename,filesize,password),"utf-8"))
+        sock.send(bytes(buildHeader("<WRITE>",filename,filesize,password),"utf-8"))
         while True:
             packet = file.read(1024)
             if not packet:
@@ -97,11 +89,12 @@ def sendmode(sock,filename,password):
             sock.send(packet)
         file.close()
     else:
-        sock.send(bytes(buildheader("<FAILED>",filename,filesize,password),"utf-8"))
-    
-def listmode(sock):
+        sock.send(bytes(buildHeader("<FAILED>",filename,filesize,password),"utf-8"))
+
+#function to return a list of files available on the server   
+def listMode(sock):
     #send the header
-    sock.send(bytes(buildheader(command="<LIST>"),"utf-8"))
+    sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
     filelist = os.listdir(os.curdir)
     sock.send(bytes(" >" + "\n >".join(filelist),"utf-8"))
 
