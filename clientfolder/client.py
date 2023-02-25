@@ -20,6 +20,7 @@ def main():
                 break
             elif (message == 'Download'):
                 downloadMode(sock)
+
                 break
             elif (message == 'List'):
                 listMode(sock)
@@ -36,11 +37,14 @@ def main():
 
 #building the header that needs to be sent to the server
 def buildHeader(command, filename='', filesize='', filestate='', password=''):
+
     return f'{command}#{filename}#{filesize}#{filestate}#{password}'
+
 
 #decoding headers that come from the server
 def decodeHeader(header,pos):
     return header.split("#")[pos]
+
 
 #function to send multiple files at once
 def multiUploadMode(sock):
@@ -73,6 +77,7 @@ def multiUploadMode(sock):
     
 #function to send a file to the server
 def uploadMode(sock):
+
     filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
     filesize = os.path.getsize(filename)
     #send the header
@@ -90,6 +95,7 @@ def uploadMode(sock):
 
 #function to receive a file from the server
 def downloadMode(sock):
+
     filename, password = input("Please enter the filename of the file you wish to send followed by the file password: \n").split(" ")
     sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
@@ -116,7 +122,9 @@ def downloadMode(sock):
         return
 
 #function to request a list of files currently on the server
+
 def listMode(sock):
+
     sock.send(bytes(buildHeader("<LIST>"),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")

@@ -34,10 +34,12 @@ def doThings(sock,addr):
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize, filestate,password = header.split("#")
             if(command == '<READ>'):
+
                 uploadMode(sock,filename,filesize,filestate,password)
                 break
             elif(command == '<WRITE>'):
                 downloadMode(sock,filename,password)
+
                 break
             elif(command == '<LIST>'):
                 listMode(sock)
@@ -62,7 +64,9 @@ def decodeHeader(header):
     return header.split("#")
 
 #function for receiving a file to be stored
+
 def uploadMode(sock,filename,filesize, filestate,password):
+
     file_keys[filename] = (filestate,password)
     
     with open(filename,"wb") as f: 
@@ -75,8 +79,10 @@ def uploadMode(sock,filename,filesize, filestate,password):
             # write to the file the bytes we just received
             f.write(bytes_read)
     
+
 #function to send a file from the server to a client
 def downloadMode(sock,filename,password):
+
     file = open(filename, "rb")
     filesize = os.path.getsize(filename)
     filestate,pwd = file_keys[filename]
