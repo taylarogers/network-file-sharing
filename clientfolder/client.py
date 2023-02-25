@@ -11,18 +11,19 @@ def main():
             # type the message to be sent
             message = input("What would you like to do? \n (s)end file, (r)etrieve file, (l)ist files, (q)uit \n")
             
+            
             if (message == 's'):
-                sendmode(sock)
+                sendMode(sock)
                 break
             elif (message == 'r'):
-                recvmode(sock)
+                recMode(sock)
                 break
             elif (message == 'l'):
                 listmode(sock)
                 break
             elif (message == 'q'):
                 print("Closing server link...")
-                sock.send(bytes(buildheader("<QUIT>"),"utf-8"))
+                sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
                 break
             else:
                 print("Please enter a valid message.")
@@ -30,18 +31,21 @@ def main():
     finally:
         sock.close()
 
-def buildheader(command, filename='', filesize='', filestate='', password=''):
+#building the header that needs to be sent to the server
+def buildHeader(command, filename='', filesize='', filestate='', password=''):
     return f"{command}#{filename}#{filesize}#{filestate}#{password}"
 
-def decodeheader(header,pos):
+#decoding headers that come from the server
+def decodeHeader(header,pos):
     return header.split("#")[pos]
 
-def sendmode(sock):
+#function to send a file to the server
+def sendMode(sock):
     #enter the name of the file you wish to send
     filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
     filesize = os.path.getsize(filename)
     #send the header
-    sock.send(bytes(buildheader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
+    sock.send(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     
@@ -52,12 +56,13 @@ def sendmode(sock):
             break
         sock.send(packet)
     file.close()
-
-def recvmode(sock):
+    
+#function to receive a file from the server
+def recMode(sock):
     filename, password = input("Please enter the filename of the file you wish to send followed by the file password: \n").split(" ")
-    sock.send(bytes(buildheader("<WRITE>",filename, password=password),"utf-8"))
+    sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
-    command,filename_h, filesize_h= decodeheader(header,0), decodeheader(header,1),decodeheader(header,2)
+    command,filename_h, filesize_h= decodeHeader(header,0), decodeHeader(header,1),decodeHeader(header,2)
     if command == "<FAILED>":
         print("Request failed.")
         return
@@ -79,8 +84,9 @@ def recvmode(sock):
         print("Transfer failed")
         return
 
+#function to request a list of files currently on the server
 def listmode(sock):
-    sock.send(bytes(buildheader("<LIST>"),"utf-8"))
+    sock.send(bytes(buildHeader("<LIST>"),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")
     print(filelist)
