@@ -17,19 +17,22 @@ def main():
         # accept console input for instructions
         while (True):
             # type the message to be sent
-            message = input("What would you like to do? Choose one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Quit \n")
+            message = input("What would you like to do? Choose one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Delete \n -Quit \n")
             if (message == 'Upload'):
                 uploadMode(sock)
                 continue
             elif (message == 'MultiUpload'):
                 multiUploadMode(sock)
-                break
+                continue
             elif (message == 'Download'):
                 downloadMode(sock)
-                break
+                continue
             elif (message == 'List'):
                 listMode(sock)
-                break
+                continue
+            elif (message == 'Delete'):
+                deleteMode(sock)
+                continue
             elif (message == 'Quit'):
                 print("Closing server link...")
                 sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
@@ -124,6 +127,13 @@ def downloadMode(sock):
     else:
         print("Transfer failed")
         return
+    
+# Delete function
+def deleteMode(sock):
+    filename = input('Please input the file name that you would like to delete:\n')
+    sock.send(bytes(buildHeader("<DELETE>", filename), "utf-8"))
+    returnedMessage = sock.recv(1024).decode("utf-8")
+    print(returnedMessage)
 
 #function to request a list of files currently on the server
 
