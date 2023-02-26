@@ -16,6 +16,10 @@ def main():
     init()
     with open('filekeys.json') as infile:
             file_keys = json.load(infile)
+    
+    ######################
+    print(file_keys)
+
     print("Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((socket.gethostname(), 1235))
@@ -54,9 +58,13 @@ def doThings(sock,addr,file_keys):
             elif(command == '<LIST>'):
                 listMode(sock)
                 continue
+            elif (command == '<DELETE>'):
+                deleteMode(sock, filename,file_keys)
+                print(file_keys)
+                break
             elif(command == '<QUIT>'):
                 print("Closing server link...")
-                break;
+                break
             else:
                 print("Invalid Message")
                 counter+=1
@@ -79,7 +87,7 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
 
     file_keys[filename] = (filestate,password)
     print("opening file")
-    with open(filename,"wb") as f: 
+    with open(f"./Files/{filename}","wb") as f: 
         print("opened file")
         byte_total = 0
         filesize = int(filesize)
@@ -100,6 +108,8 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
             counter += 1
     print("bytes written")
     f.close()
+    ###########
+    print(file_keys)
     return
     
 
@@ -125,6 +135,17 @@ def listMode(sock):
     sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
     filelist = os.listdir(os.curdir)
     sock.send(bytes(" >" + "\n >".join(filelist),"utf-8"))
+
+# Function to delete
+def deleteMode(sock, filename,file_keys):
+    try:
+        os.remove(f"./Files/{filename}")
+        print(file_keys)
+        del file_keys[filename]
+        sock.send(bytes(f"[*] Successfully deleted {filename}", "utf-8"))
+    except:
+        print("[X] File not found")
+        sock.send(bytes(f"[X] Could not find {filename} - please choose a file that already exists", "utf-8"))
 
 if __name__ == "__main__":
     main()
