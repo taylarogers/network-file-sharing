@@ -31,11 +31,9 @@ def main():
             elif (message == 'List'):
                 listMode(sock)
                 continue
-
             elif (message == 'Delete'):
                 deleteMode(sock)
                 continue
-
             elif (message == 'Quit'):
                 print("Closing server link...")
                 sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
@@ -90,10 +88,13 @@ def multiUploadMode(sock):
 def uploadMode(sock):
     filename = input("Please enter the filename of the file you wish to send: \n")
     password = input("Please enter the password of the file (leave blank for no password): \n")
-    if(password == ""): password = None
+    if(password == ""): 
+        status = "open"
+    else:
+        status = "protected"
     filesize = os.path.getsize(filename)
     #send the header
-    sock.sendall(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
+    sock.sendall(bytes(buildHeader("<READ>", filename, filesize, status, password=password),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     
@@ -135,7 +136,8 @@ def downloadMode(sock):
 # Delete function
 def deleteMode(sock):
     filename = input('Please input the file name that you would like to delete:\n')
-    sock.send(bytes(buildHeader("<DELETE>", filename), "utf-8"))
+    password = input('Please input the password for the file (if none leave blank):\n')
+    sock.send(bytes(buildHeader("<DELETE>", filename, "", "", password), "utf-8"))
     returnedMessage = sock.recv(1024).decode("utf-8")
     print(returnedMessage)
 

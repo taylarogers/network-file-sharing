@@ -59,9 +59,9 @@ def doThings(sock,addr,file_keys):
                 listMode(sock)
                 continue
             elif (command == '<DELETE>'):
-                deleteMode(sock, filename,file_keys)
+                checkForPassword(sock, filename,password,file_keys)
                 print(file_keys)
-                break
+                continue
             elif(command == '<QUIT>'):
                 print("Closing server link...")
                 break
@@ -146,6 +146,19 @@ def deleteMode(sock, filename,file_keys):
     except:
         print("[X] File not found")
         sock.send(bytes(f"[X] Could not find {filename} - please choose a file that already exists", "utf-8"))
+
+def checkForPassword(sock, filename, password, file_keys):
+    if file_keys.get(filename) == None:
+        sock.send(bytes(f"[X] {filename} does not exist and cannot be deleted"))
+    else:
+        values = file_keys.get(filename)
+
+        if values[0] == "open":
+            deleteMode(sock, filename, file_keys)
+        elif values[1] == password:
+            deleteMode(sock, filename, file_keys)
+        else:
+            sock.send(bytes(f"[X] Incorrect password for {filename} - cannot delete file"))
 
 if __name__ == "__main__":
     main()
