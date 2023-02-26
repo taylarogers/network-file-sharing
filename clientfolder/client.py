@@ -3,15 +3,22 @@ import os
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((socket.gethostname(), 1239))
+    sock.connect((socket.gethostname(), 1237))
+    sock.send(bytes("123.45.68","utf-8"))
+    con_state = sock.recv(1024).decode('utf-8')
+    if(con_state == "<FAILED>"):
+        sock.close()
+        print("Connection error. Client blacklisted.")
+        return
+    elif con_state == "<SUCCEEDED>":
+        print("Connection to server successful!")
 
     try:
         # accept console input for instructions
         while (True):
             # type the message to be sent
-            message = input("What would you like to do? Choose one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Quit \n")
+            message = input("What would you like to do? Type one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Quit \n")
             
-
             if (message == 'Upload'):
                 uploadMode(sock)
                 break
@@ -20,7 +27,6 @@ def main():
                 break
             elif (message == 'Download'):
                 downloadMode(sock)
-
                 break
             elif (message == 'List'):
                 listMode(sock)

@@ -5,41 +5,48 @@ import threading
 import json
 
 file_keys = {}
+blacklist = ['123.45.67']
+no_clients = 0
 
 def init():
     if not os.path.exists("filekeys.json"):
         with open('filekeys.json','w') as outfile:
             json.dump(file_keys, outfile)
+    with open('filekeys.json') as infile:
+            file_keys = json.load(infile)
     
 def main():
     init()
-    with open('filekeys.json') as infile:
-            file_keys = json.load(infile)
     print("Starting server...")
-    print(file_keys)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((socket.gethostname(), 1239))
+    s.bind((socket.gethostname(), 1237))
     s.listen(5)
+    no_clients = 0
 
     while True:
+        print(no_clients)
         clientsocket, address = s.accept()
         print(f"connection from {address} has been established!")
-        start_new_thread(doThings,(clientsocket,address))
-    
+        if clientsocket.recv(1024).decode('utf-8') in blacklist:
+            print("Connection refused.")
+            clientsocket.send(bytes("<FAILED>",'utf-8'))
+            clientsocket.close()
+        else:
+            clientsocket.send(bytes("<SUCCEEDED>",'utf-8'))
+            start_new_thread(doThings,(clientsocket,address, no_clients))
+            no_clients += 1
 
-def doThings(sock,addr):
+def doThings(sock,addr,no_clients):
     try:
         counter = 0
         while True:
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize, filestate,password = header.split("#")
             if(command == '<READ>'):
-
                 uploadMode(sock,filename,filesize,filestate,password)
                 break
             elif(command == '<WRITE>'):
                 downloadMode(sock,filename,password)
-
                 break
             elif(command == '<LIST>'):
                 listMode(sock)
@@ -55,15 +62,16 @@ def doThings(sock,addr):
     finally:
         with open('filekeys.json','w') as outfile:
             json.dump(file_keys, outfile)
+        print("Dumping JSON")
         sock.close()
+        no_clients -= 1
+        return
 
-def buildHeader(command, filename='', filesize='', filestate='', password=''):
-    return f"{command}#{filename}#{filesize}#{filestate}#{password}"
+def buildHeader(command, filename='', filesize='', filestate='', password='', usrtype = 'default'):
+    return f"{command}#{filename}#{filesize}#{filestate}#{password}{usrtype}"
 
 def decodeHeader(header):
     return header.split("#")
-
-#function for receiving a file to be stored
 
 def uploadMode(sock,filename,filesize, filestate,password):
 
@@ -79,8 +87,6 @@ def uploadMode(sock,filename,filesize, filestate,password):
             # write to the file the bytes we just received
             f.write(bytes_read)
     
-
-#function to send a file from the server to a client
 def downloadMode(sock,filename,password):
 
     file = open(filename, "rb")
@@ -97,12 +103,11 @@ def downloadMode(sock,filename,password):
     else:
         sock.send(bytes(buildHeader("<FAILED>",filename,filesize,password),"utf-8"))
 
-#function to return a list of files available on the server   
 def listMode(sock):
     #send the header
     sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
     filelist = os.listdir(os.curdir)
-    sock.send(bytes(" >" + "\n >".join(filelist),"utf-8"))
+    sock.send(bytes(" >" + "\n >".join(filelist) ,"utf-8"))
 
 if __name__ == "__main__":
     main()
