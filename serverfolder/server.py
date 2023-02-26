@@ -18,7 +18,7 @@ def main():
             file_keys = json.load(infile)
     print("Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((socket.gethostname(), 1239))
+    s.bind((socket.gethostname(), 1235))
     s.listen(5)
 
     for i in range(4): #wait for one client to connect
@@ -50,10 +50,10 @@ def doThings(sock,addr,file_keys):
                 continue
             elif(command == '<WRITE>'):
                 downloadMode(sock,filename,password)
-                break
+                continue
             elif(command == '<LIST>'):
                 listMode(sock)
-                break
+                continue
             elif(command == '<QUIT>'):
                 print("Closing server link...")
                 break;
