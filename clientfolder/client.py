@@ -6,7 +6,7 @@ def main():
     sock.connect((socket.gethostname(), 1235))
 
     sock.send(bytes("Tomassd","utf-8"))
-    
+
     if(sock.recv(1024).decode('utf-8') == "<DENIED>"):
         print("Connection Denied.")
         #sock.close()
@@ -83,7 +83,9 @@ def multiUploadMode(sock):
     
 #function to send a file to the server
 def uploadMode(sock):
-    filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
+    filename = input("Please enter the filename of the file you wish to send: \n")
+    password = input("Please enter the password of the file (leave blank for no password): \n")
+    if(password == ""): password = None
     filesize = os.path.getsize(filename)
     #send the header
     sock.sendall(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
