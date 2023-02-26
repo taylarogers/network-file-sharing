@@ -5,6 +5,7 @@ import threading
 import json
 
 file_keys = {}
+blacklist = ["Tomas"]
 
 def init():
     if not os.path.exists("filekeys.json"):
@@ -20,10 +21,16 @@ def main():
     s.bind((socket.gethostname(), 1239))
     s.listen(5)
 
-    for i in range(2): #wait for one client to connect
+    for i in range(4): #wait for one client to connect
         clientsocket, address = s.accept()
-        print(f"connection from {address} has been established!")
-        start_new_thread(doThings,(clientsocket,address,file_keys))
+        if(clientsocket.recv(1024).decode('utf-8') in blacklist):
+            clientsocket.sendall(bytes("<DENIED>",'utf-8'))
+            clientsocket.close()
+            continue
+        else:
+            clientsocket.sendall(bytes("<ALLOWED>",'utf-8'))
+            print(f"connection from {address} has been established!")
+            start_new_thread(doThings,(clientsocket,address,file_keys))
 
     print(file_keys)
     with open('filekeys.json','w') as outfile:
@@ -35,11 +42,12 @@ def doThings(sock,addr,file_keys):
     try:
         counter = 0
         while True:
+            print("awaiting message")
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize, filestate,password = header.split("#")
             if(command == '<READ>'):
                 uploadMode(sock,filename,filesize,filestate,password,file_keys)
-                break
+                continue
             elif(command == '<WRITE>'):
                 downloadMode(sock,filename,password)
                 break
@@ -70,17 +78,29 @@ def decodeHeader(header):
 def uploadMode(sock,filename,filesize, filestate,password,file_keys):
 
     file_keys[filename] = (filestate,password)
-    
+    print("opening file")
     with open(filename,"wb") as f: 
+        print("opened file")
+        byte_total = 0
+        filesize = int(filesize)
+        counter = 0
         while True:
             # read 1024 bytes from the socket (receive)
             bytes_read = sock.recv(1024)
-            if not bytes_read:    
+            byte_total += len(bytes_read)
+            if byte_total >= filesize:
+                f.write(bytes_read)
+                break
+            elif not bytes_read:    
                 # if nothing is coming through then we are done
                 break
             # write to the file the bytes we just received
+            print(f"writing_bytes {counter}")
             f.write(bytes_read)
-        f.close()
+            counter += 1
+    print("bytes written")
+    f.close()
+    return
     
 
 #function to send a file from the server to a client

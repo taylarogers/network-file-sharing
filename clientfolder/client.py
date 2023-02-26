@@ -5,22 +5,27 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((socket.gethostname(), 1239))
 
+    sock.send(bytes("Tomassd","utf-8"))
+    if(sock.recv(1024).decode('utf-8') == "<DENIED>"):
+        print("Connection Denied.")
+        #sock.close()
+        return
+    else:
+        print("Connection Established!")
+
     try:
         # accept console input for instructions
         while (True):
             # type the message to be sent
             message = input("What would you like to do? Choose one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Quit \n")
-            
-
             if (message == 'Upload'):
                 uploadMode(sock)
-                break
+                continue
             elif (message == 'MultiUpload'):
                 multiUploadMode(sock)
                 break
             elif (message == 'Download'):
                 downloadMode(sock)
-
                 break
             elif (message == 'List'):
                 listMode(sock)
@@ -36,7 +41,7 @@ def main():
         sock.close()
 
 #building the header that needs to be sent to the server
-def buildHeader(command, filename='', filesize='', filestate='', password=''):
+def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' '):
 
     return f'{command}#{filename}#{filesize}#{filestate}#{password}'
 
@@ -80,7 +85,7 @@ def uploadMode(sock):
     filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
     filesize = os.path.getsize(filename)
     #send the header
-    sock.send(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
+    sock.sendall(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     
@@ -89,7 +94,7 @@ def uploadMode(sock):
         packet = file.read(1024)
         if not packet:
             break
-        sock.send(packet)
+        sock.sendall(packet)
     file.close()
 
 #function to receive a file from the server
