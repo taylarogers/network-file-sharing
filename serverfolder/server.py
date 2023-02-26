@@ -16,9 +16,6 @@ def main():
     init()
     with open('filekeys.json') as infile:
             file_keys = json.load(infile)
-    
-    ######################
-    print(file_keys)
 
     print("Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,11 +53,10 @@ def doThings(sock,addr,file_keys):
                 downloadMode(sock,filename,password)
                 continue
             elif(command == '<LIST>'):
-                listMode(sock)
+                listMode(sock, file_keys)
                 continue
             elif (command == '<DELETE>'):
                 checkForPassword(sock, filename,password,file_keys)
-                print(file_keys)
                 continue
             elif(command == '<QUIT>'):
                 print("Closing server link...")
@@ -108,8 +104,6 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
             counter += 1
     print("bytes written")
     f.close()
-    ###########
-    print(file_keys)
     return
     
 
@@ -130,17 +124,24 @@ def downloadMode(sock,filename,password):
         sock.send(bytes(buildHeader("<FAILED>",filename,filesize,password),"utf-8"))
 
 #function to return a list of files available on the server   
-def listMode(sock):
+def listMode(sock, file_keys):
     #send the header
     sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
-    filelist = os.listdir(os.curdir)
-    sock.send(bytes(" >" + "\n >".join(filelist),"utf-8"))
+    filelist = " > \n"
+
+    for filename in file_keys.keys():
+        values = file_keys[filename]
+        status = values[0]
+        filelist = filelist + f" > {filename} ({status}) \n"
+
+    filelist = filelist + " >"
+
+    sock.send(bytes(filelist,"utf-8"))
 
 # Function to delete
 def deleteMode(sock, filename,file_keys):
     try:
         os.remove(f"./Files/{filename}")
-        print(file_keys)
         del file_keys[filename]
         sock.send(bytes(f"[*] Successfully deleted {filename}", "utf-8"))
     except:
