@@ -16,30 +16,32 @@ def main():
     with open('filekeys.json') as infile:
             file_keys = json.load(infile)
     print("Starting server...")
-    print(file_keys)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((socket.gethostname(), 1239))
     s.listen(5)
 
-    while True:
+    for i in range(2): #wait for one client to connect
         clientsocket, address = s.accept()
         print(f"connection from {address} has been established!")
-        start_new_thread(doThings,(clientsocket,address))
-    
+        start_new_thread(doThings,(clientsocket,address,file_keys))
 
-def doThings(sock,addr):
+    print(file_keys)
+    with open('filekeys.json','w') as outfile:
+            json.dump(file_keys, outfile)
+    s.close()
+    return
+
+def doThings(sock,addr,file_keys):
     try:
         counter = 0
         while True:
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize, filestate,password = header.split("#")
             if(command == '<READ>'):
-
-                uploadMode(sock,filename,filesize,filestate,password)
+                uploadMode(sock,filename,filesize,filestate,password,file_keys)
                 break
             elif(command == '<WRITE>'):
                 downloadMode(sock,filename,password)
-
                 break
             elif(command == '<LIST>'):
                 listMode(sock)
@@ -65,24 +67,24 @@ def decodeHeader(header):
 
 #function for receiving a file to be stored
 
-def uploadMode(sock,filename,filesize, filestate,password):
+def uploadMode(sock,filename,filesize, filestate,password,file_keys):
 
     file_keys[filename] = (filestate,password)
     
     with open(filename,"wb") as f: 
         while True:
             # read 1024 bytes from the socket (receive)
-            bytes_read = sock.recv(4096)
+            bytes_read = sock.recv(1024)
             if not bytes_read:    
                 # if nothing is coming through then we are done
                 break
             # write to the file the bytes we just received
             f.write(bytes_read)
+        f.close()
     
 
 #function to send a file from the server to a client
 def downloadMode(sock,filename,password):
-
     file = open(filename, "rb")
     filesize = os.path.getsize(filename)
     filestate,pwd = file_keys[filename]

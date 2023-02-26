@@ -77,7 +77,6 @@ def multiUploadMode(sock):
     
 #function to send a file to the server
 def uploadMode(sock):
-
     filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
     filesize = os.path.getsize(filename)
     #send the header
