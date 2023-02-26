@@ -87,7 +87,7 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
 
     file_keys[filename] = (filestate,password)
     print("opening file")
-    with open(filename,"wb") as f: 
+    with open(f"./Files/{filename}","wb") as f: 
         print("opened file")
         byte_total = 0
         filesize = int(filesize)
@@ -139,7 +139,7 @@ def listMode(sock):
 # Function to delete
 def deleteMode(sock, filename,file_keys):
     try:
-        os.remove(filename)
+        os.remove(f"./Files/{filename}")
         print(file_keys)
         del file_keys[filename]
         sock.send(bytes(f"[*] Successfully deleted {filename}", "utf-8"))
