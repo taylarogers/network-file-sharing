@@ -3,18 +3,25 @@ import os
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((socket.gethostname(), 1235))
-
-    sock.send(bytes("Tomassd","utf-8"))
-
-    if(sock.recv(1024).decode('utf-8') == "<DENIED>"):
-        print("Connection Denied.")
-        #sock.close()
-        return
-    else:
-        print("Connection Established!")
+    sock.connect((socket.gethostname(), 1232))
 
     try:
+        username = input("Please enter your username: ")
+        password = input("Please enter your password: ")
+
+        sock.send(bytes(f"{username}<SPLIT>{password}",'utf-8'))
+        status,message = sock.recv(1024).decode('utf-8').split("#")
+        if status == "<BANNED>":
+            print(message)
+            sock.close()
+            return
+        elif status == "<OK>":
+            print(message)
+        elif status == "<INVALID>":
+            print(message)
+            sock.close()
+            return
+
         # accept console input for instructions
         while (True):
             # type the message to be sent
@@ -64,21 +71,6 @@ def multiUploadMode(sock):
         numFiles=int(numFiles)
         #for loop to go through all files
         for x in range(numFiles):
-            # #enter the name of the file you wish to send
-            # filename, password = input("Please enter the filename of the file you wish to send and the associated password (filename password): \n").split(" ")
-            # filesize = os.path.getsize(filename)
-            # #send the header
-            # sock.send(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
-            # #open the file to send
-            # file = open(filename, "rb")
-            
-            # #read packets to send over
-            # while True:
-            #     packet = file.read(1024)
-            #     if not packet:
-            #         break
-            #     sock.sendall(packet)
-            # file.close()
             uploadMode(sock)
     else:
         print("This is not a valid number")
@@ -86,15 +78,13 @@ def multiUploadMode(sock):
     
 #function to send a file to the server
 def uploadMode(sock):
-    filename = input("Please enter the filename of the file you wish to send: \n")
-    password = input("Please enter the password of the file (leave blank for no password): \n")
-    if(password == ""): 
-        status = "open"
-    else:
-        status = "protected"
+    filename = input("Please enter the name of the file: ")
+    password = input("Please enter the password (leave blank if no password): ")
+    password = password if password != "" else None
     filesize = os.path.getsize(filename)
+    filestate = "protected" if password == None else "open"
     #send the header
-    sock.sendall(bytes(buildHeader("<READ>", filename, filesize, status, password=password),"utf-8"))
+    sock.send(bytes(buildHeader("<READ>", filename, filesize, filestate=filestate,password=password),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     
@@ -144,7 +134,6 @@ def deleteMode(sock):
 #function to request a list of files currently on the server
 
 def listMode(sock):
-
     sock.send(bytes(buildHeader("<LIST>"),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")

@@ -6,46 +6,52 @@ import json
 
 file_keys = {}
 blacklist = ["Tomas"]
+user_credentials = {}
 
 def init():
     if not os.path.exists("filekeys.json"):
         with open('filekeys.json','w') as outfile:
             json.dump(file_keys, outfile)
+    if not os.path.exists("user_credentials.json"):
+        with open('user_credentials.json','w') as outfile:
+            json.dump(user_credentials, outfile)
     
 def main():
     init()
     with open('filekeys.json') as infile:
             file_keys = json.load(infile)
-
+    with open('user_credentials.json') as infile:
+            user_credentials = json.load(infile)
     print("Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((socket.gethostname(), 1231))
     s.bind((socket.gethostname(), 1232))
     s.listen(5)
 
     for i in range(4): #wait for one client to connect
         clientsocket, address = s.accept()
-        if(clientsocket.recv(1024).decode('utf-8') in blacklist):
-            clientsocket.sendall(bytes("<DENIED>",'utf-8'))
-            clientsocket.close()
-            continue
-        else:
-            clientsocket.sendall(bytes("<ALLOWED>",'utf-8'))
-            print(f"connection from {address} has been established!")
-            start_new_thread(doThings,(clientsocket,address,file_keys))
+        print(f"connection from {address} has been established!")
+        
+        #get login details
+        getlogin(clientsocket,user_credentials)
+                
+        start_new_thread(doThings,(clientsocket,address,file_keys,user_credentials))
 
     print(file_keys)
     with open('filekeys.json','w') as outfile:
             json.dump(file_keys, outfile)
+    with open('user_credentials.json','w') as outfile:
+            json.dump(user_credentials, outfile)
     s.close()
     return
 
-def doThings(sock,addr,file_keys):
+def doThings(sock,addr,file_keys,user_credentials):
+    print("Thread started")
     try:
-        counter = 0
         while True:
             print("awaiting message")
             header = sock.recv(1024).decode("utf-8")
-            command,filename,filesize, filestate,password = header.split("#")
+            command,filename,filesize,filestate,password = header.split("#")
             if(command == '<READ>'):
                 uploadMode(sock,filename,filesize,filestate,password,file_keys)
                 continue
@@ -57,6 +63,10 @@ def doThings(sock,addr,file_keys):
                 continue
             elif (command == '<DELETE>'):
                 checkForPassword(sock, filename,password,file_keys)
+                listMode(sock)
+                continue
+            elif(command == '<REG>'):
+                addUser(sock,user_credentials)
                 continue
             elif(command == '<QUIT>'):
                 print("Closing server link...")
@@ -69,6 +79,8 @@ def doThings(sock,addr,file_keys):
     finally:
         with open('filekeys.json','w') as outfile:
             json.dump(file_keys, outfile)
+        with open('user_credentials.json','w') as outfile:
+            json.dump(user_credentials, outfile)
         sock.close()
 
 def buildHeader(command, filename='', filesize='', filestate='', password=''):
@@ -77,10 +89,28 @@ def buildHeader(command, filename='', filesize='', filestate='', password=''):
 def decodeHeader(header):
     return header.split("#")
 
+def getlogin(sock,user_credentials):
+    username,password = sock.recv(1024).decode('utf-8').split("<SPLIT>")
+    print("Creds recv", username,password)
+    if username in user_credentials:
+        print("They're in")
+        if user_credentials[username][1] == "banned":
+            sock.send(bytes("<BANNED>#Error. User is banned. Please contact a systems administrator",'utf-8'))
+            sock.close()
+        elif user_credentials[username][1] == "ok" and user_credentials[username][0] == password:
+            sock.send(bytes("<OK>#Password accepted. User login successful!",'utf-8'))
+        elif user_credentials[username][1] == "ok" and user_credentials[username][0] != password:
+            sock.send(bytes("<INVALID>#Password denied. Please enter a valid password.",'utf-8'))
+    else:
+        print("They're not in")
+        user_credentials[username] = (password,"ok")
+        sock.send(bytes("<OK>",'utf-8'))
+    return
+
 #function for receiving a file to be stored
 
 def uploadMode(sock,filename,filesize, filestate,password,file_keys):
-
+    
     file_keys[filename] = (filestate,password)
     print("opening file")
     with open(f"./Files/{filename}","wb") as f: 
@@ -106,6 +136,11 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
     f.close()
     return
     
+def addUser(sock,user_credentials):
+    username,password,permissions = sock.recv(1024).decode('utf-8').split("#")
+    #if the user does not have credentials with the server then add them
+    if username not in user_credentials:
+        user_credentials[username] = password
 
 #function to send a file from the server to a client
 def downloadMode(sock,filename,password):
