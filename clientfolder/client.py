@@ -3,15 +3,25 @@ import os
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((socket.gethostname(), 1231))
+    sock.connect((socket.gethostname(), 1232))
 
     try:
         username = input("Please enter your username: ")
         password = input("Please enter your password: ")
 
         sock.send(bytes(f"{username}<SPLIT>{password}",'utf-8'))
-        # print(sock.recv(1024).decode('utf-8'))
-        # print(sock.recv(1024).decode('utf-8'))
+        status,message = sock.recv(1024).decode('utf-8').split("#")
+        if status == "<BANNED>":
+            print(message)
+            sock.close()
+            return
+        elif status == "<OK>":
+            print(message)
+        elif status == "<INVALID>":
+            print(message)
+            sock.close()
+            return
+
         # accept console input for instructions
         while (True):
             # type the message to be sent
@@ -65,10 +75,13 @@ def multiUploadMode(sock):
     
 #function to send a file to the server
 def uploadMode(sock):
-    filename, password = input("Please enter the filename of the file you wish to send and the associated password: \n").split(" ")
+    filename = input("Please enter the name of the file: ")
+    password = input("Please enter the password (leave blank if no password): ")
+    password = password if password != "" else None
     filesize = os.path.getsize(filename)
+    filestate = "protected" if password == None else "open"
     #send the header
-    sock.send(bytes(buildHeader("<READ>", filename, filesize, "protected", password=password),"utf-8"))
+    sock.send(bytes(buildHeader("<READ>", filename, filesize, filestate=filestate,password=password),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     

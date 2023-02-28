@@ -24,6 +24,7 @@ def main():
     print("Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((socket.gethostname(), 1231))
+    s.bind((socket.gethostname(), 1232))
     s.listen(5)
 
     for i in range(4): #wait for one client to connect
@@ -46,7 +47,6 @@ def main():
 def doThings(sock,addr,file_keys,user_credentials):
     print("Thread started")
     try:
-        counter = 0
         while True:
             header = sock.recv(1024).decode("utf-8")
             command,filename,filesize,filestate,password = header.split("#")
@@ -89,23 +89,22 @@ def getlogin(sock,user_credentials):
     if username in user_credentials:
         print("They're in")
         if user_credentials[username][1] == "banned":
-            sock.send(bytes("<BANNED>",'utf-8'))
-            sock.send(bytes("Login failed. User is banned.",'utf-8'))
+            sock.send(bytes("<BANNED>#Error. User is banned. Please contact a systems administrator",'utf-8'))
             sock.close()
         elif user_credentials[username][1] == "ok" and user_credentials[username][0] == password:
-            sock.send(bytes("<OK>",'utf-8'))
-            sock.send(bytes("Login successful!",'utf-8'))
+            sock.send(bytes("<OK>#Password accepted. User login successful!",'utf-8'))
+        elif user_credentials[username][1] == "ok" and user_credentials[username][0] != password:
+            sock.send(bytes("<INVALID>#Password denied. Please enter a valid password.",'utf-8'))
     else:
         print("They're not in")
         user_credentials[username] = (password,"ok")
         sock.send(bytes("<OK>",'utf-8'))
-        sock.send(bytes("New login detected, user registered on server.", 'utf-8'))
     return
 
 #function for receiving a file to be stored
 
 def uploadMode(sock,filename,filesize, filestate,password,file_keys):
-
+    
     file_keys[filename] = (filestate,password)
     
     with open(filename,"wb") as f:
@@ -119,8 +118,9 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
                 # if nothing is coming through then we are done
                 break
             # write to the file the bytes we just received
-        f.write(total_bytes)
-        f.close()
+            f.write(bytes_read)
+    f.close()
+    return
     
 def addUser(sock,user_credentials):
     username,password,permissions = sock.recv(1024).decode('utf-8').split("#")
