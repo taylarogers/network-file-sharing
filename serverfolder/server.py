@@ -19,7 +19,7 @@ def main():
 
     print("Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((socket.gethostname(), 1235))
+    s.bind((socket.gethostname(), 1232))
     s.listen(5)
 
     for i in range(4): #wait for one client to connect
