@@ -5,7 +5,7 @@ import threading
 import json
 import hashlib
 
-PORT_NO = 1231
+PORT_NO = 1230
 
 file_keys = {}
 blacklist = ["Tayla"]
@@ -42,7 +42,9 @@ def main():
         print(f"[*] Connection established: {address}.")
         
         # Get login details to verify ability to use server
-        getlogin(clientsocket,user_credentials)
+        # Code 1 means that the login was unsuccessful
+        if getlogin(clientsocket,user_credentials) == 1:
+            continue
                 
         start_new_thread(commands,(clientsocket,address,file_keys,user_credentials))
 
@@ -120,18 +122,21 @@ def getlogin(sock,user_credentials):
             print(f"[X] Login: {username} is banned from the system.")
             sock.send(bytes("<BANNED>#[X] User is banned - please contact a systems administrator.",'utf-8'))
             sock.close()
+            return 1
         elif user_credentials[username][1] == "ok" and user_credentials[username][0] == password:
             print(f"[*] Login: {username} is logged in.")
             sock.send(bytes("<OK>#[*] Password accepted - user login successful.",'utf-8'))
+            return 0
         elif user_credentials[username][1] == "ok" and user_credentials[username][0] != password:
             print(f"[X] Login: {username} has entered an incorrect password.")
             sock.send(bytes("<INVALID>#[X] Password denied - please enter a valid password for this account.",'utf-8'))
+            return 1
     else:
         # If the user is not registered
         print(f"[*] Login: {username} has created an account.")
         user_credentials[username] = (password,"ok")
-        sock.send(bytes("<OK>[*] Account created - user login successful.",'utf-8'))
-    return
+        sock.send(bytes("<OK>#[*] Account created - user login successful.",'utf-8'))
+        return 0
 
 # Storing a file on the server
 def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys):

@@ -2,7 +2,7 @@ import socket
 import os
 import hashlib
 
-PORT_NO = 1231
+PORT_NO = 1230
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
