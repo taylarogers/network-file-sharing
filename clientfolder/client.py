@@ -71,16 +71,17 @@ def multiUploadMode(sock):
         numFiles=int(numFiles)
         #for loop to go through all files
         for x in range(numFiles):
-            uploadMode(sock)
+            uploadMode(sock, True)
+            returnedMessage = sock.recv(1024).decode("utf-8")
+            print(returnedMessage)
     else:
         print("This is not a valid number")
 
     
 #function to send a file to the server
-def uploadMode(sock):
+def uploadMode(sock, multi=False):
     filename = input("Please enter the name of the file: ")
     password = input("Please enter the password (leave blank if no password): ")
-    password = password if password != "" else None
     filesize = os.path.getsize(filename)
     filestate = "protected" if password == None else "open"
     #send the header
@@ -95,6 +96,10 @@ def uploadMode(sock):
             break
         sock.sendall(packet)
     file.close()
+
+    if multi==False:
+        returnedMessage = sock.recv(1024).decode("utf-8")
+        print(returnedMessage)
 
 #function to receive a file from the server
 def downloadMode(sock):
@@ -111,7 +116,7 @@ def downloadMode(sock):
     while True:
         packet = sock.recv(1024)
         if not packet:
-            break;
+            break
         file_bytes += packet
     #open the file to write to and write to the file
     if(len(file_bytes) == filesize_h):
