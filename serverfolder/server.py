@@ -3,9 +3,12 @@ import os
 from _thread import *
 import threading
 import json
+import hashlib
+
+PORT_NO = 1231
 
 file_keys = {}
-blacklist = ["Tomas"]
+blacklist = ["Tayla"]
 user_credentials = {}
 
 # If the storage files do not exist then create them and store the data currently stored in the dictionaries in them
@@ -30,7 +33,7 @@ def main():
     # Start the server
     print("[*] Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((socket.gethostname(), 1232))
+    s.bind((socket.gethostname(), PORT_NO))
     s.listen(5)
 
     # Wait for a client to connect to the server
@@ -64,13 +67,13 @@ def commands(sock,addr,file_keys,user_credentials):
 
             # Receive input from client
             header = sock.recv(1024).decode("utf-8")
-            command,filename,filesize,filestate,password = header.split("#")
+            command,filename,filesize,filestate,password,checksum = header.split("#")
 
             if(command == '<READ>'):
-                uploadMode(sock,filename,filesize,filestate,password,file_keys)
+                uploadMode(sock,filename,filesize,filestate,password,checksum,file_keys)
                 continue
             elif(command == '<WRITE>'):
-                downloadMode(sock,filename,password)
+                downloadMode(sock,filename,password,file_keys)
                 continue
             elif(command == '<LIST>'):
                 listMode(sock, file_keys)
@@ -98,8 +101,8 @@ def commands(sock,addr,file_keys,user_credentials):
         sock.close()
 
 # Compile a header in format of created protocol
-def buildHeader(command, filename='', filesize='', filestate='', password=''):
-    return f"{command}#{filename}#{filesize}#{filestate}#{password}"
+def buildHeader(command, filename='', filesize='', filestate='', password='',checksum=''):
+    return f"{command}#{filename}#{filesize}#{filestate}#{password}#{checksum}"
 
 # Break down received header
 def decodeHeader(header):
@@ -131,7 +134,7 @@ def getlogin(sock,user_credentials):
     return
 
 # Storing a file on the server
-def uploadMode(sock,filename,filesize, filestate,password,file_keys):
+def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys):
     print(f"[*] Upload: storing {filename}")
     
     file_keys[filename] = (filestate,password)
@@ -140,7 +143,6 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
     with open(f"./Files/{filename}","wb") as f: 
         byte_total = 0
         filesize = int(filesize)
-        counter = 0
 
         while True:
             # Read 1024 bytes from the socket (receive)
@@ -156,18 +158,18 @@ def uploadMode(sock,filename,filesize, filestate,password,file_keys):
 
             # Write to the file the bytes we just received
             f.write(bytes_read)
-            counter += 1
 
         print(f"[*] Upload: {filename} stored.")
 
         # Close file
         f.close()
 
-    ######### THIS IS WHERE YOU NEED TO PUT YOUR CHECK IN THAT IT WAS UPLOADED CORRECTLY
-    # Send message back to client for feedback
-    sock.send(bytes(f"[*] Upload: {filename} uploaded successfully.", "utf-8"))
-    # sock.send(bytes(f"[X] Upload: there was an issue transmitting {filename}.", "utf-8"))
-    
+    if filesize == os.path.getsize(f"./Files/{filename}") and checksum == generateChecksum(f"./Files/{filename}"):
+        # Send message back to client for feedback
+        sock.send(bytes(f"[*] Upload: {filename} uploaded successfully.", "utf-8"))
+    else:
+        # Send message back to client for feedback
+        sock.send(bytes(f"[X] Upload: there was an issue transmitting {filename}.", "utf-8"))    
     return
 
 ####### DELETE????? ADMIN ROLE NECESSARY   
@@ -181,21 +183,20 @@ def addUser(sock,user_credentials):
         user_credentials[username] = password
 
 # Sending a file on the server to the client
-def downloadMode(sock,filename,password):
-    file = open(filename, "rb")
-    filesize = os.path.getsize(filename)
+def downloadMode(sock,filename,password,file_keys):
+    file = open(f"./Files/{filename}", "rb")
+    filesize = os.path.getsize(f"./Files/{filename}")
     filestate,pwd = file_keys[filename]
 
     # Check for ability to be able to download file
     if (filestate == 'protected' and password == pwd) or (filestate == 'open'):
-        sock.send(bytes(buildHeader("<WRITE>",filename,filesize,password),"utf-8"))
-
+        sock.send(bytes(buildHeader("<OK>",filename,filesize,password,checksum=generateChecksum(f"./Files/{filename}")),"utf-8"))
         # Send file bytes back to client
         while True:
             packet = file.read(1024)
             if not packet:
                 break
-            sock.send(packet)
+            sock.sendall(packet)
 
         # Close the file
         file.close()
@@ -255,6 +256,16 @@ def checkForPassword(sock, filename, password, file_keys):
         else:
             print(f"[X] Delete: incorrect password entered for {filename}.")
             sock.send(bytes(f"[X] Delete: incorrect password for {filename} - cannot delete file", "utf-8"))
+
+def generateChecksum(filename):
+    checksum = hashlib.md5()
+    with open(filename, 'rb') as file:
+        while True:
+            data = file.read(1024*64)
+            if not data:
+                break
+            checksum.update(data)
+    return checksum.hexdigest()
 
 if __name__ == "__main__":
     main()

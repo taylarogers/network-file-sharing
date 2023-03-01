@@ -1,9 +1,12 @@
 import socket
 import os
+import hashlib
+
+PORT_NO = 1231
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((socket.gethostname(), 1232))
+    sock.connect((socket.gethostname(), PORT_NO))
 
     try:
         username = input("Please enter your username: ")
@@ -52,8 +55,8 @@ def main():
         sock.close()
 
 #building the header that needs to be sent to the server
-def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' '):
-    return f'{command}#{filename}#{filesize}#{filestate}#{password}'
+def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' ',checksum = ' '):
+    return f'{command}#{filename}#{filesize}#{filestate}#{password}#{checksum}'
 
 
 #decoding headers that come from the server
@@ -83,9 +86,9 @@ def uploadMode(sock, multi=False):
     filename = input("Please enter the name of the file: ")
     password = input("Please enter the password (leave blank if no password): ")
     filesize = os.path.getsize(filename)
-    filestate = "protected" if password == None else "open"
+    filestate = "protected" if password == "" else "open"
     #send the header
-    sock.send(bytes(buildHeader("<READ>", filename, filesize, filestate=filestate,password=password),"utf-8"))
+    sock.send(bytes(buildHeader("<READ>", filename, filesize, filestate=filestate,password=password, checksum=generateChecksum(filename)),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     
@@ -103,30 +106,37 @@ def uploadMode(sock, multi=False):
 
 #function to receive a file from the server
 def downloadMode(sock):
-    filename, password = input("Please enter the filename of the file you wish to send followed by the file password: \n").split(" ")
+    filename = input("Please enter the name of the file: ")
+    password = input("Please enter the password (leave blank if no password): ")
     sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
-    header = sock.recv(1024).decode("utf-8")
-    command,filename_h, filesize_h= decodeHeader(header,0), decodeHeader(header,1),decodeHeader(header,2)
+    command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split("#")
     if command == "<FAILED>":
         print("Request failed.")
         return
-    #data to write to file
-    file_bytes = b""
-    #recieve the file in packets
-    while True:
-        packet = sock.recv(1024)
-        if not packet:
-            break
-        file_bytes += packet
-    #open the file to write to and write to the file
-    if(len(file_bytes) == filesize_h):
-        file = open(filename_h, "wb")
-        file.write(file_bytes)
-        file.close()
-        return
-    else:
-        print("Transfer failed")
-        return
+    elif command == "<OK>":
+        hash_no = hashlib.md5()
+        #recieve the file in packets
+        with open(filename,'wb') as f:
+            byte_total = 0
+            filesize = int(filesize)
+            while True:
+                bytes_read = sock.recv(1024)
+                byte_total += len(bytes_read)
+                if byte_total >= filesize:
+                    f.write(bytes_read)
+                    hash_no.update(bytes_read)
+                    break
+                elif not bytes_read:
+                    break
+                f.write(bytes_read)
+                hash_no.update(bytes_read)
+        #open the file to write to and write to the file
+        if(byte_total == filesize and hash_no.hexdigest() == checksum):
+            f.close()
+            return
+        else:
+            print("Transfer failed")
+            return
     
 # Delete function
 def deleteMode(sock):
@@ -143,6 +153,17 @@ def listMode(sock):
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")
     print(filelist)
+
+def generateChecksum(file):
+    checksum = hashlib.md5()
+    with open(file, 'rb') as f:
+        while True:
+            data = f.read(1024*64)
+            if not data:
+                break
+            checksum.update(data)
+    return checksum.hexdigest()
+            
 
 if __name__ == "__main__":
     main()
