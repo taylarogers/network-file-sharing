@@ -4,11 +4,11 @@ from _thread import *
 import threading
 import json
 import hashlib
-
-PORT_NO = 1230
+import sys
 
 file_keys = {}
-blacklist = ["Tayla"]
+blacklist = ["Tomas"]
+admin = ["Tayla"]
 user_credentials = {}
 
 # If the storage files do not exist then create them and store the data currently stored in the dictionaries in them
@@ -24,6 +24,17 @@ def data_init():
 def main():
     data_init()
 
+    # Accept command line arguments for IP address and Port Number
+    n = len(sys.argv)
+    if n < 3:
+        IP_ADDR = '127.0.0.1'
+        PORT_NO = 1230
+    else:
+        IP_ADDR = sys.argv[1]
+        PORT_NO = int(sys.argv[2])
+
+    print(IP_ADDR,PORT_NO)
+
     # Load data from files into dictionaries
     with open('filekeys.json') as infile:
             file_keys = json.load(infile)
@@ -33,20 +44,26 @@ def main():
     # Start the server
     print("[*] Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((socket.gethostname(), PORT_NO))
+    s.bind((IP_ADDR, PORT_NO))
     s.listen(5)
 
+    exitcode = 1
+
     # Wait for a client to connect to the server
-    for i in range(4):
+    while exitcode == 1:
         clientsocket, address = s.accept()
         print(f"[*] Connection established: {address}.")
         
         # Get login details to verify ability to use server
         # Code 1 means that the login was unsuccessful
-        if getlogin(clientsocket,user_credentials) == 1:
+        status,username = getlogin(clientsocket,user_credentials)
+        if status == 0:
+            start_new_thread(commands,(clientsocket,address,file_keys,user_credentials,username))
+        if status == 1:
             continue
-                
-        start_new_thread(commands,(clientsocket,address,file_keys,user_credentials))
+        elif status == 2:
+            exitcode = commands(clientsocket,address,file_keys,user_credentials,username)
+        
 
     # Load everything that is in dictionaries back into the files for storage
     with open('filekeys.json','w') as outfile:
@@ -55,11 +72,12 @@ def main():
             json.dump(user_credentials, outfile)
 
     # Close server
+    print(f"[*] Closing server...")
     s.close()
     return
 
 # Function that decides what is done in the server based off of user input
-def commands(sock,addr,file_keys,user_credentials):
+def commands(sock,addr,file_keys,user_credentials,username):
     print("[*] Thread started.")
 
     # Decide what actions to take
@@ -69,22 +87,23 @@ def commands(sock,addr,file_keys,user_credentials):
 
             # Receive input from client
             header = sock.recv(1024).decode("utf-8")
-            command,filename,filesize,filestate,password,checksum = header.split("#")
-
+            command,filename,filesize,filestate,password,checksum,user = header.split("#")
+            print(user)
+            
             if(command == '<READ>'):
-                uploadMode(sock,filename,filesize,filestate,password,checksum,file_keys)
+                uploadMode(sock,filename,filesize,filestate,password,checksum,file_keys,user)
                 continue
             elif(command == '<WRITE>'):
-                downloadMode(sock,filename,password,file_keys)
+                downloadMode(sock,filename,password,file_keys,user)
                 continue
             elif(command == '<LIST>'):
-                listMode(sock, file_keys)
+                listMode(sock, file_keys, user)
                 continue
             elif (command == '<DELETE>'):
                 checkForPassword(sock, filename,password,file_keys)
                 continue
             elif(command == '<REG>'):
-                addUser(sock,user_credentials)
+                addUser(sock,user_credentials,user)
                 continue
             elif(command == '<QUIT>'):
                 print(f"[*] Closing client link: {addr}...")
@@ -101,14 +120,11 @@ def commands(sock,addr,file_keys,user_credentials):
         with open('user_credentials.json','w') as outfile:
             json.dump(user_credentials, outfile)
         sock.close()
+        return 0
 
 # Compile a header in format of created protocol
 def buildHeader(command, filename='', filesize='', filestate='', password='',checksum=''):
     return f"{command}#{filename}#{filesize}#{filestate}#{password}#{checksum}"
-
-# Break down received header
-def decodeHeader(header):
-    return header.split("#")
 
 # Check user login details against records
 def getlogin(sock,user_credentials):
@@ -122,27 +138,31 @@ def getlogin(sock,user_credentials):
             print(f"[X] Login: {username} is banned from the system.")
             sock.send(bytes("<BANNED>#[X] User is banned - please contact a systems administrator.",'utf-8'))
             sock.close()
-            return 1
+            return 1,None
         elif user_credentials[username][1] == "ok" and user_credentials[username][0] == password:
             print(f"[*] Login: {username} is logged in.")
             sock.send(bytes("<OK>#[*] Password accepted - user login successful.",'utf-8'))
-            return 0
+            return 0,username
+        elif user_credentials[username][1] == "admin" and user_credentials[username][0] == password:
+            print(f"[*] Login: {username} is logged in.")
+            sock.send(bytes("<OK>#[*] Password accepted - admin login successful.",'utf-8'))
+            return 2,username
         elif user_credentials[username][1] == "ok" and user_credentials[username][0] != password:
             print(f"[X] Login: {username} has entered an incorrect password.")
             sock.send(bytes("<INVALID>#[X] Password denied - please enter a valid password for this account.",'utf-8'))
-            return 1
+            return 1,None
     else:
         # If the user is not registered
         print(f"[*] Login: {username} has created an account.")
         user_credentials[username] = (password,"ok")
         sock.send(bytes("<OK>#[*] Account created - user login successful.",'utf-8'))
-        return 0
+        return 0,username
 
 # Storing a file on the server
-def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys):
+def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys,username):
     print(f"[*] Upload: storing {filename}")
     
-    file_keys[filename] = (filestate,password)
+    file_keys[filename] = (filestate,password,username)
 
     # Write bytes to a new file
     with open(f"./Files/{filename}","wb") as f: 
@@ -188,10 +208,10 @@ def addUser(sock,user_credentials):
         user_credentials[username] = password
 
 # Sending a file on the server to the client
-def downloadMode(sock,filename,password,file_keys):
+def downloadMode(sock,filename,password,file_keys,username):
     file = open(f"./Files/{filename}", "rb")
     filesize = os.path.getsize(f"./Files/{filename}")
-    filestate,pwd = file_keys[filename]
+    filestate,pwd,user = file_keys[filename]
 
     # Check for ability to be able to download file
     if (filestate == 'protected' and password == pwd) or (filestate == 'open'):
@@ -213,16 +233,20 @@ def downloadMode(sock,filename,password,file_keys):
         print(f"[*] Download: {filename} failed to send.")
 
 # Listing the available files on the server
-def listMode(sock, file_keys):
+def listMode(sock, file_keys, user):
     # Send the header
     sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
     filelist = " > \n"
 
+    print(user)
+
     # Create list of filenames and their protection status
     for filename in file_keys.keys():
         values = file_keys[filename]
-        status = values[0]
-        filelist = filelist + f" > {filename} ({status}) \n"
+        if values[0] == 'protected' and user == values[2]:
+            filelist = filelist + f" > {filename} \n"
+        elif values[0] == 'open':
+            filelist = filelist + f" > {filename} \n"
 
     filelist = filelist + " >"
 

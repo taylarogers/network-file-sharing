@@ -1,12 +1,20 @@
 import socket
 import os
 import hashlib
-
-PORT_NO = 1230
+import sys
 
 def main():
+
+    n = len(sys.argv)
+    if n < 3:
+        IP_ADDR = '127.0.0.1'
+        PORT_NO = 1230
+    else:
+        IP_ADDR = sys.argv[1]
+        PORT_NO = int(sys.argv[2])
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((socket.gethostname(), PORT_NO))
+    sock.connect((IP_ADDR, PORT_NO))
 
     try:
         username = input("Please enter your username: ")
@@ -30,16 +38,16 @@ def main():
             # type the message to be sent
             message = input("What would you like to do? Choose one of the options: \n -Upload\n -MultiUpload\n -Download \n -List \n -Delete \n -Quit \n")
             if (message == 'Upload'):
-                uploadMode(sock)
+                uploadMode(sock,username)
                 continue
             elif (message == 'MultiUpload'):
                 multiUploadMode(sock)
                 continue
             elif (message == 'Download'):
-                downloadMode(sock)
+                downloadMode(sock,username)
                 continue
             elif (message == 'List'):
-                listMode(sock)
+                listMode(sock,username)
                 continue
             elif (message == 'Delete'):
                 deleteMode(sock)
@@ -55,8 +63,8 @@ def main():
         sock.close()
 
 #building the header that needs to be sent to the server
-def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' ',checksum = ' '):
-    return f'{command}#{filename}#{filesize}#{filestate}#{password}#{checksum}'
+def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' ',checksum = ' ', username = ' '):
+    return f'{command}#{filename}#{filesize}#{filestate}#{password}#{checksum}#{username}'
 
 
 #decoding headers that come from the server
@@ -82,13 +90,13 @@ def multiUploadMode(sock):
 
     
 #function to send a file to the server
-def uploadMode(sock, multi=False):
+def uploadMode(sock, username, multi=False):
     filename = input("Please enter the name of the file: ")
     password = input("Please enter the password (leave blank if no password): ")
     filesize = os.path.getsize(filename)
-    filestate = "protected" if password == "" else "open"
+    filestate = "open" if password == "" else "protected"
     #send the header
-    sock.send(bytes(buildHeader("<READ>", filename, filesize, filestate=filestate,password=password, checksum=generateChecksum(filename)),"utf-8"))
+    sock.send(bytes(buildHeader("<READ>", filename, filesize,username=username,filestate=filestate,password=password, checksum=generateChecksum(filename)),"utf-8"))
     #open the file to send
     file = open(filename, "rb")
     
@@ -105,10 +113,10 @@ def uploadMode(sock, multi=False):
         print(returnedMessage)
 
 #function to receive a file from the server
-def downloadMode(sock):
+def downloadMode(sock,user):
     filename = input("Please enter the name of the file: ")
     password = input("Please enter the password (leave blank if no password): ")
-    sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
+    sock.send(bytes(buildHeader("<WRITE>",filename, password=password,username=user),"utf-8"))
     command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split("#")
     if command == "<FAILED>":
         print("Request failed.")
@@ -148,8 +156,8 @@ def deleteMode(sock):
 
 #function to request a list of files currently on the server
 
-def listMode(sock):
-    sock.send(bytes(buildHeader("<LIST>"),"utf-8"))
+def listMode(sock,username):
+    sock.send(bytes(buildHeader("<LIST>",username=username),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")
     print(filelist)
