@@ -54,7 +54,10 @@ def main():
                 continue
             elif (message == 'Quit'):
                 print("Closing server link...")
-                sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
+                try:
+                    sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
+                except:
+                    print("Connection Interrupted.")
                 break
             else:
                 print("Please enter a valid message.")
@@ -91,60 +94,66 @@ def multiUploadMode(sock):
     
 #function to send a file to the server
 def uploadMode(sock, username, multi=False):
-    filename = input("Please enter the name of the file: ")
-    password = input("Please enter the password (leave blank if no password): ")
-    filesize = os.path.getsize(filename)
-    filestate = "open" if password == "" else "protected"
-    #send the header
-    sock.send(bytes(buildHeader("<READ>", filename, filesize,username=username,filestate=filestate,password=password, checksum=generateChecksum(filename)),"utf-8"))
-    #open the file to send
-    file = open(filename, "rb")
+    try:
+        filename = input("Please enter the name of the file: ")
+        password = input("Please enter the password (leave blank if no password): ")
+        filesize = os.path.getsize(filename)
+        filestate = "open" if password == "" else "protected"
+        #send the header
+        sock.send(bytes(buildHeader("<READ>", filename, filesize,username=username,filestate=filestate,password=password, checksum=generateChecksum(filename)),"utf-8"))
+        #open the file to send
+        file = open(filename, "rb")
     
-    #read packets to send over
-    while True:
-        packet = file.read(1024)
-        if not packet:
-            break
-        sock.sendall(packet)
-    file.close()
+        #read packets to send over
+        while True:
+            packet = file.read(1024)
+            if not packet:
+                break
+            sock.sendall(packet)
+        file.close()
 
-    if multi==False:
-        returnedMessage = sock.recv(1024).decode("utf-8")
-        print(returnedMessage)
+        if multi==False:
+            returnedMessage = sock.recv(1024).decode("utf-8")
+            print(returnedMessage)
+    except:
+        print("Action Failed. Connection interrupted")
 
 #function to receive a file from the server
 def downloadMode(sock,user):
-    filename = input("Please enter the name of the file: ")
-    password = input("Please enter the password (leave blank if no password): ")
-    sock.send(bytes(buildHeader("<WRITE>",filename, password=password,username=user),"utf-8"))
-    command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split("#")
-    if command == "<FAILED>":
-        print("Request failed.")
-        return
-    elif command == "<OK>":
-        hash_no = hashlib.md5()
-        #recieve the file in packets
-        with open(filename,'wb') as f:
-            byte_total = 0
-            filesize = int(filesize)
-            while True:
-                bytes_read = sock.recv(1024)
-                byte_total += len(bytes_read)
-                if byte_total >= filesize:
+    try:
+        filename = input("Please enter the name of the file: ")
+        password = input("Please enter the password (leave blank if no password): ")
+        sock.send(bytes(buildHeader("<WRITE>",filename, password=password,username=user),"utf-8"))
+        command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split("#")
+        if command == "<FAILED>":
+            print("Request failed.")
+            return
+        elif command == "<OK>":
+            hash_no = hashlib.md5()
+            #recieve the file in packets
+            with open(filename,'wb') as f:
+                byte_total = 0
+                filesize = int(filesize)
+                while True:
+                    bytes_read = sock.recv(1024)
+                    byte_total += len(bytes_read)
+                    if byte_total >= filesize:
+                        f.write(bytes_read)
+                        hash_no.update(bytes_read)
+                        break
+                    elif not bytes_read:
+                        break
                     f.write(bytes_read)
                     hash_no.update(bytes_read)
-                    break
-                elif not bytes_read:
-                    break
-                f.write(bytes_read)
-                hash_no.update(bytes_read)
-        #open the file to write to and write to the file
-        if(byte_total == filesize and hash_no.hexdigest() == checksum):
-            f.close()
-            return
-        else:
-            print("Transfer failed")
-            return
+            #open the file to write to and write to the file
+            if(byte_total == filesize and hash_no.hexdigest() == checksum):
+                f.close()
+                return
+            else:
+                print("Transfer failed")
+                return
+    except:
+        print("Action Failed. Connection interrupted")
     
 # Delete function
 def deleteMode(sock):
