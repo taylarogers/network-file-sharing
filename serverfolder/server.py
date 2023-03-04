@@ -37,6 +37,16 @@ def main():
     with open('user_credentials.json') as infile:
             user_credentials = json.load(infile)
 
+
+    # Checks the server's file system and updates file_keys dictionary to remove files no longer there
+    to_remove = []
+
+    for file in file_keys:
+        if file not in os.listdir('Files/'):
+            to_remove.append(file)
+    for file in to_remove:
+        file_keys.pop(file)
+
     # Start the server
     print("[*] Starting server...")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -153,7 +163,7 @@ def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys,use
     try:
         print(f"[*] Upload: storing {filename}")
         
-        file_keys[filename] = (filestate,password,username)
+        
 
         # Write bytes to a new file
         with open(f"./Files/{filename}","wb") as f: 
@@ -179,8 +189,11 @@ def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys,use
 
             # Close file
             f.close()
+        
 
         if filesize == os.path.getsize(f"./Files/{filename}") and checksum == generateChecksum(f"./Files/{filename}"):
+            # Add the file to the file_keys
+            file_keys[filename] = (filestate,password,username)
             # Send message back to client for feedback
             sock.send(bytes(f"[*] Upload: {filename} uploaded successfully.", "utf-8"))
         else:
@@ -230,8 +243,6 @@ def listMode(sock, file_keys, user):
         # Send the header
         sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
         filelist = " > \n"
-
-        print(user)
 
         # Create list of filenames and their protection status
         for filename in file_keys.keys():
