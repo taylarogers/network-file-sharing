@@ -8,7 +8,6 @@ import sys
 
 file_keys = {}
 user_credentials = {}
-server_status = {"status":1}
 
 # If the storage files do not exist then create them and store the data currently stored in the dictionaries in them
 def data_init():
@@ -49,10 +48,10 @@ def main():
         try:
             clientsocket, address = s.accept()
             print(f"[*] Connection established: {address}.")
+            
             # Get login details to verify ability to use server
             # Code 1 means that the login was unsuccessful
-            status,username = getlogin(clientsocket,user_credentials)
-            start_new_thread(commands,(clientsocket,address,file_keys,user_credentials,username,server_status))
+            start_new_thread(commands,(clientsocket,address,file_keys,user_credentials))
         except KeyboardInterrupt:
             break
         
@@ -68,12 +67,17 @@ def main():
     return
 
 # Function that decides what is done in the server based off of user input
-def commands(sock,addr,file_keys,user_credentials,username,server_status):
+def commands(sock,addr,file_keys,user_credentials):
     print("[*] Thread started.")
+
+    status = getlogin(sock,user_credentials)
 
     # Decide what actions to take
     try:
         while True:
+            if status == 1:
+                print(f"[*] Closing client link: {addr}...")
+                break
             print("[*] Awaiting message...")
 
             # Receive input from client
@@ -106,13 +110,11 @@ def commands(sock,addr,file_keys,user_credentials,username,server_status):
             json.dump(file_keys, outfile)
         with open('user_credentials.json','w') as outfile:
             json.dump(user_credentials, outfile)
-        if user_credentials[username][1] == 'admin':
-            server_status['status'] = 0
         sock.close()
         return 0
 
 # Compile a header in format of created protocol
-def buildHeader(command, filename='', filesize='', filestate='', password='',checksum=''):
+def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' ',checksum=' '):
     return f"{command}#{filename}#{filesize}#{filestate}#{password}#{checksum}"
 
 # Check user login details against records
@@ -128,25 +130,21 @@ def getlogin(sock,user_credentials):
                 print(f"[X] Login: {username} is banned from the system.")
                 sock.send(bytes("<BANNED>#[X] User is banned - please contact a systems administrator.",'utf-8'))
                 sock.close()
-                return 1,None
+                return 1
             elif user_credentials[username][1] == "ok" and user_credentials[username][0] == password:
                 print(f"[*] Login: {username} is logged in.")
                 sock.send(bytes("<OK>#[*] Password accepted - user login successful.",'utf-8'))
                 return 0,username
-            elif user_credentials[username][1] == "admin" and user_credentials[username][0] == password:
-                print(f"[*] Login: {username} is logged in.")
-                sock.send(bytes("<OK>#[*] Password accepted - admin login successful.",'utf-8'))
-                return 2,username
             elif user_credentials[username][1] == "ok" and user_credentials[username][0] != password:
                 print(f"[X] Login: {username} has entered an incorrect password.")
                 sock.send(bytes("<INVALID>#[X] Password denied - please enter a valid password for this account.",'utf-8'))
-                return 1,None
+                return 1
         else:
             # If the user is not registered
             print(f"[*] Login: {username} has created an account.")
             user_credentials[username] = (password,"ok")
             sock.send(bytes("<OK>#[*] Account created - user login successful.",'utf-8'))
-            return 0,username
+            return 0
     except BrokenPipeError:
         print(f"[X] Connection: Connection has been interrupted.")
 
@@ -195,28 +193,34 @@ def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys,use
 # Sending a file on the server to the client
 def downloadMode(sock,filename,password,file_keys):
     try:
-        file = open(f"./Files/{filename}", "rb")
-        filesize = os.path.getsize(f"./Files/{filename}")
-        filestate,pwd,user = file_keys[filename]
+        try:
+            file = open(f"./Files/{filename}", "rb")
+            filesize = os.path.getsize(f"./Files/{filename}")
+            filestate,pwd,user = file_keys[filename]
 
-        # Check for ability to be able to download file
-        if (filestate == 'protected' and password == pwd) or (filestate == 'open'):
-            sock.send(bytes(buildHeader("<OK>",filename,filesize,password,checksum=generateChecksum(f"./Files/{filename}")),"utf-8"))
-            # Send file bytes back to client
-            while True:
-                packet = file.read(1024)
-                if not packet:
-                    break
-                sock.sendall(packet)
+            # Check for ability to be able to download file
+            if (filestate == 'protected' and password == pwd) or (filestate == 'open'):
+                sock.send(bytes(buildHeader("<OK>",filename,filesize,password,checksum=generateChecksum(f"./Files/{filename}")),"utf-8"))
+                # Send file bytes back to client
+                while True:
+                    packet = file.read(1024)
+                    if not packet:
+                        break
+                    sock.sendall(packet)
 
-            # Close the file
-            file.close()
+                # Close the file
+                file.close()
 
-            print(f"[*] Download: {filename} sent.")
-        else:
-            # Send error message back to client
-            sock.send(bytes(buildHeader("<FAILED>",filename,filesize,password),"utf-8"))
-            print(f"[*] Download: {filename} failed to send.")
+                print(f"[*] Download: {filename} sent.")
+            else:
+                # Send error message back to client
+                sock.send(bytes(buildHeader("<FAILED>",filename,filesize,password),"utf-8"))
+                print(f"[*] Download: {filename} failed to send.")
+        except:
+            # Send error message
+            print(f"[X] Download: {filename} not found.")
+            sock.send(bytes(buildHeader("<FAILED>"), "utf-8"))
+        
     except BrokenPipeError:
         print(f"[X] Connection: Connection has been interrupted.")
 

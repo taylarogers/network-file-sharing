@@ -56,7 +56,7 @@ def main():
                 print("Closing server link...")
                 try:
                     sock.send(bytes(buildHeader("<QUIT>"),"utf-8"))
-                except:
+                except BrokenPipeError:
                     print("Connection Interrupted.")
                 break
             else:
@@ -115,7 +115,7 @@ def uploadMode(sock, username, multi=False):
         if multi==False:
             returnedMessage = sock.recv(1024).decode("utf-8")
             print(returnedMessage)
-    except:
+    except BrokenPipeError:
         print("Action Failed. Connection interrupted")
 
 #function to receive a file from the server
@@ -152,7 +152,7 @@ def downloadMode(sock,user):
             else:
                 print("Transfer failed")
                 return
-    except:
+    except BrokenPipeError:
         print("Action Failed. Connection interrupted")
     
 # Delete function
