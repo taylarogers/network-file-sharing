@@ -44,7 +44,7 @@ def main():
                 multiUploadMode(sock)
                 continue
             elif (message == 'Download'):
-                downloadMode(sock,username)
+                downloadMode(sock)
                 continue
             elif (message == 'List'):
                 listMode(sock,username)
@@ -74,7 +74,6 @@ def buildHeader(command, filename=' ', filesize=' ', filestate=' ', password=' '
 def decodeHeader(header,pos):
     return header.split("#")[pos]
 
-
 #function to send multiple files at once
 def multiUploadMode(sock):
     #enter the amount of files to send:
@@ -90,7 +89,6 @@ def multiUploadMode(sock):
             print(returnedMessage)
     else:
         print("This is not a valid number")
-
     
 #function to send a file to the server
 def uploadMode(sock, username, multi=False):
@@ -119,15 +117,14 @@ def uploadMode(sock, username, multi=False):
         print("Action Failed. Connection interrupted")
 
 #function to receive a file from the server
-def downloadMode(sock,user):
+def downloadMode(sock):
     try:
         filename = input("Please enter the name of the file: ")
         password = input("Please enter the password (leave blank if no password): ")
-        sock.send(bytes(buildHeader("<WRITE>",filename, password=password,username=user),"utf-8"))
-        command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split("#")
+        sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
+        command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split('#')
         if command == "<FAILED>":
             print("Request failed.")
-            return
         elif command == "<OK>":
             hash_no = hashlib.md5()
             #recieve the file in packets
@@ -148,10 +145,8 @@ def downloadMode(sock,user):
             #open the file to write to and write to the file
             if(byte_total == filesize and hash_no.hexdigest() == checksum):
                 f.close()
-                return
             else:
                 print("Transfer failed")
-                return
     except BrokenPipeError:
         print("Action Failed. Connection interrupted")
     

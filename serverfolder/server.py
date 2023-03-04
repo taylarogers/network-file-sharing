@@ -88,7 +88,7 @@ def commands(sock,addr,file_keys,user_credentials):
                 uploadMode(sock,filename,filesize,filestate,password,checksum,file_keys,user)
                 continue
             elif(command == '<WRITE>'):
-                downloadMode(sock,filename,password,file_keys,user)
+                downloadMode(sock,filename,password,file_keys)
                 continue
             elif(command == '<LIST>'):
                 listMode(sock, file_keys, user)
