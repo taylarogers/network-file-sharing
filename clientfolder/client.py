@@ -123,8 +123,8 @@ def downloadMode(sock):
         password = input("Please enter the password (leave blank if no password): ")
         sock.send(bytes(buildHeader("<WRITE>",filename, password=password),"utf-8"))
         command,filename,filesize,filestate,password,checksum = sock.recv(1024).decode("utf-8").split('#')
-        if command == "<FAILED>":
-            print("Request failed.")
+        if "<FAILED>" in command:
+            print(command[8:])
         elif command == "<OK>":
             hash_no = hashlib.md5()
             #recieve the file in packets
