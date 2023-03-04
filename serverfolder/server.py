@@ -146,7 +146,7 @@ def getlogin(sock,user_credentials):
             sock.send(bytes("<OK>#[*] Account created - user login successful.",'utf-8'))
             return 0
     except BrokenPipeError:
-        print(f"[X] Connection: Connection has been interrupted.")
+        print(f"[X] Connection: connection has been interrupted.")
 
 # Storing a file on the server
 def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys,username):
@@ -188,7 +188,7 @@ def uploadMode(sock,filename,filesize, filestate,password,checksum,file_keys,use
             sock.send(bytes(f"[X] Upload: there was an issue transmitting {filename}.", "utf-8"))    
         return
     except BrokenPipeError:
-        print(f"[X] Connection: Connection has been interrupted.")
+        print(f"[X] Connection: connection has been interrupted.")
 
 # Sending a file on the server to the client
 def downloadMode(sock,filename,password,file_keys):
@@ -214,15 +214,15 @@ def downloadMode(sock,filename,password,file_keys):
                 print(f"[*] Download: {filename} sent.")
             else:
                 # Send error message back to client
-                sock.send(bytes(buildHeader("<FAILED>",filename,filesize,password),"utf-8"))
+                sock.send(bytes(buildHeader("<FAILED>[X] Download: there was an error while sending.",filename,filesize,password),"utf-8"))
                 print(f"[*] Download: {filename} failed to send.")
         except:
             # Send error message
             print(f"[X] Download: {filename} not found.")
-            sock.send(bytes(buildHeader("<FAILED>"), "utf-8"))
+            sock.send(bytes(buildHeader("<FAILED>[X] Download: file not found."), "utf-8"))
         
     except BrokenPipeError:
-        print(f"[X] Connection: Connection has been interrupted.")
+        print(f"[X] Connection: connection has been interrupted.")
 
 # Listing the available files on the server
 def listMode(sock, file_keys, user):
@@ -248,7 +248,7 @@ def listMode(sock, file_keys, user):
 
         print(f"[*] List: files listed on server sent.")
     except BrokenPipeError:
-        print(f"[X] Connection: Connection has been interrupted.")
+        print(f"[X] Connection: connection has been interrupted.")
 
 # Deleting a file on the server
 def deleteMode(sock, filename,file_keys):
@@ -264,7 +264,7 @@ def deleteMode(sock, filename,file_keys):
             print(f"[X] Delete: {filename} not found.")
             sock.send(bytes(f"[X] Delete: {filename} not found - please choose a file that already exists.", "utf-8"))
     except BrokenPipeError:
-        print(f"[X] Connection: Connection has been interrupted.")
+        print(f"[X] Connection: connection has been interrupted.")
 
 # Check if a password is valid for access to certain files
 def checkForPassword(sock, filename, password, file_keys):
@@ -285,7 +285,7 @@ def checkForPassword(sock, filename, password, file_keys):
                 print(f"[X] Delete: incorrect password entered for {filename}.")
                 sock.send(bytes(f"[X] Delete: incorrect password for {filename} - cannot delete file", "utf-8"))
     except BrokenPipeError:
-        print(f"[X] Connection: Connection has been interrupted.")
+        print(f"[X] Connection: connection has been interrupted.")
 
 
 def generateChecksum(filename):
