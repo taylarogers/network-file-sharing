@@ -17,11 +17,16 @@ def main():
     # Create socket 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((IP_ADDR, PORT_NO))
-    print('[*] Connected to the server.')
 
     try:
         # Welcoming message
-        print('[*] Welcome to the server!')
+        print('     (¯`·.¸¸.·´¯`·.¸¸.·´¯)')
+        print('     ( \                 / )')
+        print('    ( \ )    Welcome    ( / )')
+        print('   ( ) (       to        ) ( )')
+        print('    ( / )  the server!  ( \ )')
+        print('     ( /                 \ )')
+        print('      (_.·´¯`·.¸¸.·´¯`·.¸_)')
         print('[*] Please login to access features.')
 
         # Get the user to login with their details
