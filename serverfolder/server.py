@@ -227,12 +227,12 @@ def downloadMode(sock,filename,password,file_keys):
                 print(f"[*] Download: {filename} sent.")
             else:
                 # Send error message back to client
-                sock.send(bytes(buildHeader("<FAILED>[X] Download: there was an error while sending.",filename,filesize,password),"utf-8"))
+                sock.send(bytes("<FAILED>#[X] Download: there was an error while sending.","utf-8"))
                 print(f"[*] Download: {filename} failed to send.")
         except:
             # Send error message
             print(f"[X] Download: {filename} not found.")
-            sock.send(bytes(buildHeader("<FAILED>[X] Download: file not found."), "utf-8"))
+            sock.send(bytes("<FAILED>#[X] Download: file not found.", "utf-8"))
         
     except BrokenPipeError:
         print(f"[X] Connection: connection has been interrupted.")
