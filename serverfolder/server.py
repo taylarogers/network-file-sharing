@@ -101,7 +101,7 @@ def commands(sock,addr,file_keys,user_credentials):
                 downloadMode(sock,filename,password,file_keys)
                 continue
             elif(command == '<LIST>'):
-                listMode(sock, file_keys, user)
+                listMode(sock, file_keys)
                 continue
             elif (command == '<DELETE>'):
                 checkForPassword(sock, filename,password,file_keys)
@@ -238,7 +238,7 @@ def downloadMode(sock,filename,password,file_keys):
         print(f"[X] Connection: connection has been interrupted.")
 
 # Listing the available files on the server
-def listMode(sock, file_keys, user):
+def listMode(sock, file_keys):
     try:
         # Send the header
         sock.send(bytes(buildHeader(command="<LIST>"),"utf-8"))
@@ -247,10 +247,7 @@ def listMode(sock, file_keys, user):
         # Create list of filenames and their protection status
         for filename in file_keys.keys():
             values = file_keys[filename]
-            if values[0] == 'protected' and user == values[2]:
-                filelist = filelist + f" > {filename} \n"
-            elif values[0] == 'open':
-                filelist = filelist + f" > {filename} \n"
+            filelist = filelist + f" > {filename} ({values[0]}) \n"
 
         filelist = filelist + " >"
 
