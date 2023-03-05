@@ -201,7 +201,7 @@ def downloadFile(sock, filename, password):
             hash_no = hashlib.md5()
 
             # Recieve the file in packets and determine if it was altered in any way
-            with open(filename,'wb') as f:
+            with open(f"./Files/filename",'wb') as f:
                 byte_total = 0
                 filesize = int(filesize)
 
