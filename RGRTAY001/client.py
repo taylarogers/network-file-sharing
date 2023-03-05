@@ -144,14 +144,17 @@ def uploadMode(sock, username, multi=False):
 def uploadFile(sock, filename, username, password):
     try:
         # Determine file info
-        filesize = os.path.getsize(filename)
+        filesize = os.path.getsize(f"./Files/{filename}")
+        print(filesize)
         filestate = "open" if password == "" else "protected"
 
         # Send header
-        sock.send(bytes(buildHeader("<READ>", filename, filesize,username=username,filestate=filestate,password=password, checksum=generateChecksum(filename)),"utf-8"))
+        sock.send(bytes(buildHeader("<READ>", filename, filesize,username=username,filestate=filestate,password=password, checksum=generateChecksum(f"./Files/{filename}")),"utf-8"))
         
+        print("yebo")
         # Read packets from file to send to server
-        file = open(filename, "rb")
+        file = open(f"./Files/{filename}", "rb")
+        print("yes")
 
         while True:
             packet = file.read(1024)
