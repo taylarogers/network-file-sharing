@@ -250,7 +250,7 @@ def deleteMode(sock,user):
 
 # Function to request a list of files currently on the server
 def listMode(sock,username):
-    sock.send(bytes(buildHeader("<LIST>",username=username),"utf-8"))
+    sock.send(bytes(buildHeader("<LIST>"),"utf-8"))
     header = sock.recv(1024).decode("utf-8")
     filelist = sock.recv(1024).decode("utf-8")
     print(filelist)
